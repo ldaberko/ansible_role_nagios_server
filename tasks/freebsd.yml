@@ -1,0 +1,113 @@
+---
+- name: FreeBSD | Set ServerAdmin email
+  lineinfile:
+    path: /usr/local/etc/apache24/httpd.conf
+    regexp: "^ServerAdmin "
+    line: "ServerAdmin larry@daberko.com"
+
+- name: FreeBSD | Set ServerName
+  lineinfile:
+    path: /usr/local/etc/apache24/httpd.conf
+    regexp: "^#?ServerName "
+    line: "ServerName {{inventory_hostname}}"
+
+- name: FreeBSD | Enable mod_cgi
+  replace:
+    path: /usr/local/etc/apache24/httpd.conf
+    regexp: '#LoadModule cgi_module libexec/apache24/mod_cgi.so'
+    replace: 'LoadModule cgi_module libexec/apache24/mod_cgi.so'
+  
+- name: FreeBSD | Install PHP80
+  pkgng:
+    name: php80
+    state: present
+
+- name: FreeBSD | Install mod_php80
+  pkgng:
+    name: mod_php80
+    state: present
+
+- name: FreeBSD | Copy php.ini file from production sample file
+  command:
+    cmd: /bin/cp /usr/local/etc/php.ini-production /usr/local/etc/php.ini
+    creates: /usr/local/etc/php.ini
+          
+- name: FreeBSD | Add mod_php config to Apache
+  ansible.builtin.copy:
+    src: 001_mod-php.conf
+    dest: /usr/local/etc/apache24/modules.d/001_mod-php.conf
+    owner: root
+    group: wheel
+    mode: 0644
+
+- name: FreeBSD | Make sure php_module is loaded in httpd.conf
+  lineinfile:
+    path: /usr/local/etc/apache24/httpd.conf
+    regexp: '^LoadModule php_module'
+    insertafter: '^#?LoadModule rewrite_module'
+    line: LoadModule php_module libexec/apache24/libphp.so
+    backup: yes
+          
+- name: FreeBSD | Install nagios
+  pkgng:
+    name: nagios
+    state: present
+
+- name: FreeBSD | Install nrpe3
+  pkgng:
+    name: nrpe3
+    state: present
+
+- name: FreeBSD | Add nagios to apache config
+  copy:
+    src: apache_nagios.conf
+    dest: /usr/local/etc/apache24/Includes/nagios.conf
+    owner: root
+    group: wheel
+    mode: 0644
+
+- name: FreeBSD | Copy htpasswd file
+  ansible.builtin.copy:
+    src: htpasswd.users
+    dest: /usr/local/etc/nagios/htpasswd.users
+    owner: root
+    group: wheel
+    mode: 0644
+
+- name: FreeBSD | Copy nagios main cfg files
+  copy:
+    src: "{{item}}"
+    dest: "/usr/local/etc/nagios/"
+    owner: root
+    group: wheel
+    mode: 0644
+  loop:
+    - cgi.cfg
+    - nagios.cfg
+    - resource.cfg
+
+- name: FreeBSD | Copy nagios objects cfg files
+  copy:
+    src: "objects/{{item}}"
+    dest: "/usr/local/etc/nagios/objects/"
+    owner: root
+    group: wheel
+    mode: 0644
+  loop:
+    - commands.cfg
+    - contacts.cfg
+    - localhost.cfg
+    - templates.cfg
+    - timeperiods.cfg
+
+- name: FreeBSD | Enable and start apache24
+  service:
+    name: apache24
+    enabled: yes
+    state: restarted
+
+- name: FreeBSD | Enable and start nagios
+  service:
+    name: nagios
+    enabled: yes
+    state: restarted

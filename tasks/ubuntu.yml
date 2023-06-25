@@ -1,0 +1,39 @@
+---
+- name: Ubuntu | Gather the package facts
+  ansible.builtin.package_facts:
+
+- name: Ubuntu | Check for msmtp-mta installation
+  ansible.builtin.fail:
+    msg: msmtp-mta package is missing
+  when: '"msmtp-mta" not in ansible_facts.packages'
+
+- name: Ubuntu | Check for bsd-mailx installation
+  ansible.builtin.fail:
+    msg: bsd-mailx package is missing
+  when: '"bsd-mailx" not in ansible_facts.packages'
+
+- name: Ubuntu | Check for apache2 installation
+  ansible.builtin.fail:
+    msg: apache2 package is missing
+  when: '"apache2" not in ansible_facts.packages'
+
+- name: Ubuntu | Enable Apache auth modules
+  community.general.apache2_module:
+    name: "{{ item.module }}"
+    state: present
+  loop:
+    - module: auth_digest
+      state: present
+    - module: authz_groupfile
+      state: present
+  notify: Restart Ubuntu Apache
+
+- name: Ubuntu | Install nagios packages
+  ansible.builtin.apt:
+    update_cache: true
+    name:
+      - nagios4
+      - nagios-nrpe-plugin
+    state: latest
+  notify: Restart Ubuntu Apache
+

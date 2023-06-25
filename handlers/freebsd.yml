@@ -1,0 +1,5 @@
+---
+- name: Restart FreeBSD Apache
+  ansible.builtin.service:
+    name: apache24
+    state: restarted
